@@ -50,6 +50,7 @@ public class CanalController {
     private String                                   ip;
     private String                                   registerIp;
     private int                                      port;
+    private int                                      registerPort;
     private int                                      adminPort;
     // 默认使用spring的方式载入
     private Map<String, InstanceConfig>              instanceConfigs;
@@ -107,6 +108,7 @@ public class CanalController {
         ip = getProperty(properties, CanalConstants.CANAL_IP);
         registerIp = getProperty(properties, CanalConstants.CANAL_REGISTER_IP);
         port = Integer.valueOf(getProperty(properties, CanalConstants.CANAL_PORT, "11111"));
+        registerPort = Integer.valueOf(getProperty(properties, CanalConstants.CANAL_REGISTER_PORT, port + ""));
         adminPort = Integer.valueOf(getProperty(properties, CanalConstants.CANAL_ADMIN_PORT, "11110"));
         embededCanalServer = CanalServerWithEmbedded.instance();
         embededCanalServer.setCanalInstanceGenerator(instanceGenerator);// 设置自定义的instanceGenerator
@@ -145,7 +147,7 @@ public class CanalController {
             zkclientx.createPersistent(ZookeeperPathUtils.CANAL_CLUSTER_ROOT_NODE, true);
         }
 
-        final ServerRunningData serverData = new ServerRunningData(registerIp + ":" + port);
+        final ServerRunningData serverData = new ServerRunningData(registerIp + ":" + registerPort);
         ServerRunningMonitors.setServerData(serverData);
         ServerRunningMonitors.setRunningMonitors(MigrateMap.makeComputingMap(new Function<String, ServerRunningMonitor>() {
 
@@ -182,7 +184,7 @@ public class CanalController {
                         try {
                             if (zkclientx != null) {
                                 final String path = ZookeeperPathUtils.getDestinationClusterNode(destination,
-                                    registerIp + ":" + port);
+                                    registerIp + ":" + registerPort);
                                 initCid(path);
                                 zkclientx.subscribeStateChanges(new IZkStateListener() {
 
@@ -210,7 +212,7 @@ public class CanalController {
                             MDC.put(CanalConstants.MDC_DESTINATION, String.valueOf(destination));
                             if (zkclientx != null) {
                                 final String path = ZookeeperPathUtils.getDestinationClusterNode(destination,
-                                    registerIp + ":" + port);
+                                    registerIp + ":" + registerPort);
                                 releaseCid(path);
                             }
                         } finally {
@@ -478,9 +480,9 @@ public class CanalController {
     }
 
     public void start() throws Throwable {
-        logger.info("## start the canal server[{}({}):{}]", ip, registerIp, port);
+        logger.info("## start the canal server[{}({}):{}({})]", ip, registerIp, port, registerPort);
         // 创建整个canal的工作节点
-        final String path = ZookeeperPathUtils.getCanalClusterNode(registerIp + ":" + port);
+        final String path = ZookeeperPathUtils.getCanalClusterNode(registerIp + ":" + registerPort);
         initCid(path);
         if (zkclientx != null) {
             this.zkclientx.subscribeStateChanges(new IZkStateListener() {
@@ -555,8 +557,8 @@ public class CanalController {
         }
 
         // 释放canal的工作节点
-        releaseCid(ZookeeperPathUtils.getCanalClusterNode(registerIp + ":" + port));
-        logger.info("## stop the canal server[{}({}):{}]", ip, registerIp, port);
+        releaseCid(ZookeeperPathUtils.getCanalClusterNode(registerIp + ":" + registerPort));
+        logger.info("## stop the canal server[{}({}):{}({})]", ip, registerIp, port, registerPort);
 
         if (zkclientx != null) {
             zkclientx.close();
